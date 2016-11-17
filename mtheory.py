@@ -1,6 +1,7 @@
 import pygame, sys
 import pygame.midi
 from pygame.locals import *
+import scales
 
 pygame.init()
 pygame.midi.init()
@@ -9,11 +10,14 @@ event_get = pygame.fastevent.get
 event_post = pygame.fastevent.post
 
 pygame.midi.init()
+scales.seed_scales_with_proper_number_progression()
+#print(scales.scales)
 
 i = pygame.midi.Input( 3 ) # using 1 for programming purposes, default input is '3'
 
 GAME_WIDTH = 800
 GAME_HEIGHT = 600
+font = pygame.font.Font('font/Gamegirl.ttf', 20)
 
 DISPLAYSURF = pygame.display.set_mode((GAME_WIDTH, GAME_HEIGHT))
 pygame.display.set_caption('CURSO PAJD - MTHEORY')
@@ -29,7 +33,11 @@ oc = 1
 
 white_keys = [0, 2, 4, 5, 7, 9, 11]
 black_keys = [1, 3, 6, 8, 10]
-piano_map = [False] * 60 # initializes all keys as 'False' which means they are not being pressed
+piano_map = [False] * 61 # initializes all keys as 'False' which means they are not being pressed
+
+# program modes to show scales or chords
+scale_mode = False
+chord_mode = False
 
 fpsClock = pygame.time.Clock()
 FPS = 30
@@ -43,6 +51,7 @@ dt = 0
 
 def octs_pkey(keytype, num):
 	cont = 0
+	
 	if keytype == 'white':
 		while num >= 7:
 			num -= 7
@@ -99,6 +108,10 @@ def load_assets():
 	return assets
 
 piano = load_assets()
+mkwh1 = pygame.transform.scale( pygame.image.load('img_extra/wpat1-marked.png').convert(), (6 * SCALE, 26 * SCALE) )
+mkwh2 = pygame.transform.scale( pygame.image.load('img_extra/wpat2-marked.png').convert(), (6 * SCALE, 26 * SCALE) )
+mkwh3 = pygame.transform.scale( pygame.image.load('img_extra/wpat3-marked.png').convert(), (6 * SCALE, 26 * SCALE) )
+mkbl1 = pygame.transform.scale( pygame.image.load('img_extra/bpat1-marked.png').convert(), (5 * SCALE, 16 * SCALE) )
 
 while True:
 	
@@ -108,10 +121,12 @@ while True:
 			pygame.midi.quit()
 			pygame.quit()
 			sys.exit()
-			del i			
+			del i	
+		if e.type == KEYDOWN and e.key == K_q:
+			scale_mode = not scale_mode	
 		if e.type in [pygame.midi.MIDIIN]:
 			print(e)
-			if e.status == 144 or e.status == 128 and e.data1 <= 95 and e.data1 >= 36:
+			if (e.status == 144 or e.status == 128) and (e.data1 <= 95 and e.data1 >= 36):
 				if  e.data2 >= 1 and e.status == 144:
 					piano_map[ e.data1 - 36 ] = True
 				elif  e.data2 == 0 or e.status == 128:
@@ -127,6 +142,8 @@ while True:
 
 	# draws background	
 	pygame.draw.rect(DISPLAYSURF, ( 12, 12, 12), (0, 0, GAME_WIDTH, GAME_HEIGHT))
+	# draws credits
+	DISPLAYSURF.blit(font.render('PROGRAMMED BY PAZUZU', 1, (255, 255, 255)), ( 200, 570 ))
 	
 	# draws white keys
 	wcont = 0
@@ -135,7 +152,19 @@ while True:
 			pressed = '_PRESSED'
 		else:
 			pressed = ''
-		DISPLAYSURF.blit(piano['WPAT' + str(wkeypat[wcont % 7]) + pressed], (PIANO_X + wkey_offset * wcont, PIANO_Y))		
+		
+		if pressed == '' and scale_mode and ( white_keys[ octs_pkey('white', wcont)[0] ] + octs_pkey('white', wcont)[1] * 12 in scales.scales['minor']['progression']):					
+			#temp = piano['WPAT' + str(wkeypat[wcont % 7]) + pressed ].copy()	
+			#temp.fill((255, 255, 51))		
+			if wkeypat[wcont % 7] == 1:
+				DISPLAYSURF.blit(mkwh1, (PIANO_X + wkey_offset * wcont, PIANO_Y))		
+			elif wkeypat[wcont % 7] == 2:	
+				DISPLAYSURF.blit(mkwh2, (PIANO_X + wkey_offset * wcont, PIANO_Y))		
+			elif wkeypat[wcont % 7] == 3:		
+				DISPLAYSURF.blit(mkwh3, (PIANO_X + wkey_offset * wcont, PIANO_Y))		
+		else:
+			DISPLAYSURF.blit( piano['WPAT' + str(wkeypat[wcont % 7]) + pressed ], (PIANO_X + wkey_offset * wcont, PIANO_Y))
+	
 		wcont += 1	
 	
 	# draws black keys
@@ -158,7 +187,12 @@ while True:
 			skip_cont = 0
 			if skip_current >= len(bkey_skip_pat):
 				skip_current = 0
-		DISPLAYSURF.blit(piano['BPAT1' + bpressed ], (PIANO_X + 12 + (bkey_offset * bcont - balancer) + bskip_offset, PIANO_Y))
+		if bpressed == '' and scale_mode and ( black_keys[ octs_pkey('black', bcont)[0] ] + octs_pkey('black', bcont)[1] * 12 in scales.scales['minor']['progression']):					
+			#tempb = piano['BPAT1' + bpressed ].copy()
+			#tempb.fill((255, 255, 51))			
+			DISPLAYSURF.blit(mkbl1, (PIANO_X + 12 + (bkey_offset * bcont - balancer) + bskip_offset, PIANO_Y))
+		else:
+			DISPLAYSURF.blit(piano['BPAT1' + bpressed ], (PIANO_X + 12 + (bkey_offset * bcont - balancer) + bskip_offset, PIANO_Y))
 		bcont += 1
 		skip_cont += 1	
 
